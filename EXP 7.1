@@ -1,0 +1,118 @@
+/**
+ * Title: Connecting React Frontend to Express API Using Axios
+ * Objective: Learn how to connect a React frontend application to a backend Express.js API
+ *             using Axios to fetch data and display it in a simple UI.
+ */
+
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+
+const app = express();
+app.use(cors());
+
+// ===== Product Data =====
+const products = [
+  { id: 1, name: "Laptop", price: 1200 },
+  { id: 2, name: "Mouse", price: 25 },
+  { id: 3, name: "Keyboard", price: 45 },
+];
+
+// ===== API Endpoint =====
+app.get("/api/products", (req, res) => {
+  res.json(products);
+});
+
+// ===== Serve Frontend HTML =====
+app.get("/", (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product List</title>
+  <style>
+    body {
+      background-color: #1c1c1c;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .product-list {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .card {
+      background-color: #2e2e2e;
+      border: 1px solid #555;
+      border-radius: 10px;
+      width: 200px;
+      padding: 20px;
+      transition: transform 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.05);
+    }
+    .card h2 {
+      color: #fff;
+    }
+    .card p {
+      color: #ccc;
+    }
+    button {
+      background-color: #007bff;
+      border: none;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Product List</h1>
+  <div id="root">Loading products...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    async function loadProducts() {
+      try {
+        const res = await axios.get('/api/products');
+        const products = res.data;
+        const container = document.getElementById('root');
+        container.innerHTML = '<div class="product-list">' + 
+          products.map(p => \`
+            <div class="card">
+              <h2>\${p.name}</h2>
+              <p>Price: $\${p.price}</p>
+              <button>Buy Now</button>
+            </div>
+          \`).join('') +
+        '</div>';
+      } catch (err) {
+        document.getElementById('root').innerHTML = '<p>Error loading products.</p>';
+      }
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
+  `);
+});
+
+// ===== Start Server =====
+const PORT = 5000;
+app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
