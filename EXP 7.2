@@ -1,0 +1,175 @@
+/**
+ * Title: Implement Redux Toolkit for State Management in Shopping Cart
+ * Objective: Learn how to use Redux Toolkit to manage global application state in a React project.
+ */
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { configureStore, createSlice } from "@reduxjs/toolkit";
+import { Provider, useDispatch, useSelector } from "react-redux";
+import "./index.css";
+
+// =======================
+// Redux Slice
+// =======================
+const cartSlice = createSlice({
+  name: "cart",
+  initialState: {
+    items: [],
+  },
+  reducers: {
+    addToCart: (state, action) => {
+      const existing = state.items.find((i) => i.id === action.payload.id);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        state.items.push({ ...action.payload, quantity: 1 });
+      }
+    },
+    removeFromCart: (state, action) => {
+      state.items = state.items.filter((i) => i.id !== action.payload);
+    },
+    updateQuantity: (state, action) => {
+      const { id, quantity } = action.payload;
+      const item = state.items.find((i) => i.id === id);
+      if (item) item.quantity = quantity;
+    },
+  },
+});
+
+const { addToCart, removeFromCart, updateQuantity } = cartSlice.actions;
+const store = configureStore({ reducer: { cart: cartSlice.reducer } });
+
+// =======================
+// Product Component
+// =======================
+const products = [
+  { id: 1, name: "Laptop", price: 1200 },
+  { id: 2, name: "Mouse", price: 25 },
+  { id: 3, name: "Keyboard", price: 45 },
+];
+
+function ProductList() {
+  const dispatch = useDispatch();
+
+  return (
+    <div className="product-list">
+      {products.map((p) => (
+        <div className="card" key={p.id}>
+          <h3>{p.name}</h3>
+          <p>${p.price}</p>
+          <button onClick={() => dispatch(addToCart(p))}>Add to Cart</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// =======================
+// Cart Component
+// =======================
+function Cart() {
+  const { items } = useSelector((state) => state.cart);
+  const dispatch = useDispatch();
+
+  const handleQuantityChange = (id, value) => {
+    dispatch(updateQuantity({ id, quantity: Number(value) }));
+  };
+
+  return (
+    <div className="cart">
+      {items.length === 0 ? (
+        <p>Your cart is empty</p>
+      ) : (
+        items.map((item) => (
+          <div key={item.id} className="cart-item">
+            <span>
+              {item.name} (${item.price})
+            </span>
+            <input
+              type="number"
+              min="1"
+              value={item.quantity}
+              onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+            />
+            <button onClick={() => dispatch(removeFromCart(item.id))}>
+              Remove
+            </button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// =======================
+// Main App Component
+// =======================
+function App() {
+  return (
+    <div className="app">
+      <h1>My Shop</h1>
+      <h2>Products</h2>
+      <ProductList />
+      <h2>Shopping Cart</h2>
+      <Cart />
+    </div>
+  );
+}
+
+// =======================
+// Styling (Inline CSS)
+// =======================
+const style = document.createElement("style");
+style.innerHTML = `
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 20px;
+  }
+  .app {
+    max-width: 800px;
+    margin: auto;
+  }
+  .product-list {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .card {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 15px;
+    width: 150px;
+  }
+  button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #0056b3;
+  }
+  .cart-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 8px;
+  }
+`;
+document.head.appendChild(style);
+
+// =======================
+// Render App
+// =======================
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
