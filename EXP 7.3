@@ -1,0 +1,178 @@
+/**
+ * Real-Time Chat - Single File (Express + Socket.io)
+ *
+ * Save as: server.js
+ *
+ * How to run:
+ * 1. npm init -y
+ * 2. npm install express socket.io
+ * 3. node server.js
+ * 4. Open http://localhost:3000 in multiple browser tabs/windows
+ *
+ * This file serves the client HTML and also runs the Socket.io server.
+ */
+
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+// Serve root page (client HTML + CSS + JS inline)
+app.get('/', (req, res) => {
+  res.send(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Real-Time Chat</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; background: #fafafa; margin: 20px; }
+    .container { display:flex; gap:20px; flex-wrap:wrap; justify-content:center; }
+    .chat { width:360px; border:2px solid #222; padding:12px; box-sizing:border-box; background:white; }
+    h2 { text-align:center; margin:4px 0 12px; }
+    input.name { width:100%; padding:8px; margin-bottom:8px; box-sizing:border-box; }
+    .messages { height:300px; overflow:auto; border:1px solid #ddd; padding:8px; background:#fff; }
+    .messages p { margin:6px 0; }
+    .messages .meta { font-weight:bold; }
+    .timestamp { color:#666; font-size:0.85em; margin-left:6px; font-weight:normal; }
+    .controls { display:flex; gap:8px; margin-top:8px; }
+    input.msg { flex:1; padding:8px; box-sizing:border-box; }
+    button.send { padding:8px 12px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; }
+    button.send:hover { background:#0056b3; }
+    .small { font-size:0.9em; color:#333; margin-top:10px; text-align:center; }
+  </style>
+</head>
+<body>
+  <h1 style="text-align:center">Real-Time Chat Demo</h1>
+  <div class="container">
+    <div class="chat" id="chat1">
+      <h2>Real-Time Chat</h2>
+      <input class="name" id="name1" placeholder="Your name (e.g. Alice)" />
+      <div class="messages" id="messages1"></div>
+      <div class="controls">
+        <input class="msg" id="input1" placeholder="Type your message..." />
+        <button class="send" id="send1">Send</button>
+      </div>
+      <div class="small">Open multiple windows to test real-time messaging</div>
+    </div>
+
+    <div class="chat" id="chat2">
+      <h2>Real-Time Chat</h2>
+      <input class="name" id="name2" placeholder="Your name (e.g. Bob)" />
+      <div class="messages" id="messages2"></div>
+      <div class="controls">
+        <input class="msg" id="input2" placeholder="Type your message..." />
+        <button class="send" id="send2">Send</button>
+      </div>
+      <div class="small">Each box is a separate client UI (for demo only)</div>
+    </div>
+  </div>
+
+  <!-- socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    (function () {
+      // Connect to the server socket
+      const socket = io();
+
+      // Utility: current time string [HH:MM:SS]
+      function nowTime() {
+        const d = new Date();
+        const hh = String(d.getHours()).padStart(2,'0');
+        const mm = String(d.getMinutes()).padStart(2,'0');
+        const ss = String(d.getSeconds()).padStart(2,'0');
+        return hh + ':' + mm + ':' + ss;
+      }
+
+      // Setup two demo chat boxes (so you can test two clients inside same page)
+      const clients = [
+        { nameEl: document.getElementById('name1'), inputEl: document.getElementById('input1'), messagesEl: document.getElementById('messages1'), sendBtn: document.getElementById('send1') },
+        { nameEl: document.getElementById('name2'), inputEl: document.getElementById('input2'), messagesEl: document.getElementById('messages2'), sendBtn: document.getElementById('send2') }
+      ];
+
+      // Add event listeners for each client box
+      clients.forEach((c, idx) => {
+        // Press Enter to send
+        c.inputEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') c.sendBtn.click();
+        });
+
+        // Send button
+        c.sendBtn.addEventListener('click', () => {
+          const name = c.nameEl.value.trim() || ('User' + (Math.floor(Math.random()*900)+100));
+          const text = c.inputEl.value.trim();
+          if (!text) return;
+          const payload = { name, text, time: nowTime() };
+          // emit to server
+          socket.emit('chatMessage', payload);
+          c.inputEl.value = '';
+        });
+      });
+
+      // When server sends a message, render in all message boxes
+      socket.on('chatMessage', (msg) => {
+        clients.forEach(c => appendMessage(c.messagesEl, msg));
+      });
+
+      // Notify when user connects / disconnects (server will broadcast 'userEvent')
+      socket.on('userEvent', (evt) => {
+        const msg = { system: true, text: evt.text, time: evt.time };
+        clients.forEach(c => appendMessage(c.messagesEl, msg));
+      });
+
+      // Append message DOM helper
+      function appendMessage(messagesEl, msg) {
+        const p = document.createElement('p');
+        if (msg.system) {
+          p.innerHTML = '<em style="color:#444">' + escapeHtml(msg.text) + '</em>' + '<span class="timestamp"> [' + msg.time + ']</span>';
+        } else {
+          p.innerHTML = '<span class="meta">' + escapeHtml(msg.name) + '</span>'
+                      + '<span class="timestamp"> [' + msg.time + ']:</span> '
+                      + escapeHtml(' ' + msg.text);
+        }
+        messagesEl.appendChild(p);
+        // autoscroll
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      // Simple escape to avoid HTML injection
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function (m) {
+          return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>`);
+});
+
+// ----- Socket.io server logic -----
+io.on('connection', (socket) => {
+  const time = new Date();
+  const timeStr = time.toTimeString().split(' ')[0]; // HH:MM:SS
+  // Announce new connection to all
+  io.emit('userEvent', { text: 'A user connected', time: timeStr });
+
+  // Handle incoming chat messages from clients
+  socket.on('chatMessage', (payload) => {
+    // payload expected: { name, text, time }
+    // Broadcast the message to all connected clients
+    io.emit('chatMessage', { name: payload.name, text: payload.text, time: payload.time });
+  });
+
+  socket.on('disconnect', () => {
+    const t = new Date().toTimeString().split(' ')[0];
+    io.emit('userEvent', { text: 'A user disconnected', time: t });
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log('Server listening on http://localhost:' + PORT);
+});
